@@ -4,6 +4,7 @@ import 'package:camera_scan/screens/picture_description.dart';
 import 'package:camera_scan/screens/start_page.dart';
 import 'package:camera_scan/widgets/splash_button.dart';
 import 'package:flutter/material.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -45,11 +46,12 @@ class _CameraScreenState extends State<CameraScreen> {
                   splashColor: Colors.grey,
                   onTap: () async {
                     final image = await cameraController.takePicture();
-
+                    final inputImage = InputImage.fromFilePath(image.path);
                     Navigator.push(
                         context,
                         FadeRoute(
                             page: PictureDescription(
+                          inputImage: inputImage,
                           imagePath: image.path,
                         )));
                   }))
