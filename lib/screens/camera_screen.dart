@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui';
+
 import 'package:camera/camera.dart';
 import 'package:camera_scan/main.dart';
 import 'package:camera_scan/screens/picture_description.dart';
@@ -5,6 +8,7 @@ import 'package:camera_scan/screens/start_page.dart';
 import 'package:camera_scan/widgets/splash_button.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:image/image.dart' as imagePackage;
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -13,7 +17,11 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   CameraController cameraController;
-
+  int startingPointX = 0;
+  int startingPointY = 0;
+  int widthOfImage = 0;
+  int heightOfImage = 0;
+  String pathToFileCache = '/data/user/0/com.example.camera_scan/cache';
   @override
   void initState() {
     // TODO: implement initState
@@ -32,10 +40,11 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       return Stack(
-        fit: StackFit.expand,
+        //fit: StackFit.expand,
         children: [
           CameraPreview(cameraController),
-          cameraOverlay(padding: 30, aspectRatio: 1, color: Color(0x55000000)),
+          cameraOverlay(
+              padding: 30, aspectRatio: 1.5, color: Color(0x55000000)),
           Positioned(
               //left: 40,
               right: (constraints.maxWidth / 2) - 40,
@@ -47,12 +56,49 @@ class _CameraScreenState extends State<CameraScreen> {
                   onTap: () async {
                     final image = await cameraController.takePicture();
                     final inputImage = InputImage.fromFilePath(image.path);
+                    final fileOfImage = File(image.path);
+                    final imageHeight = Image.file(File(image.path)).height;
+                    final imageWidth = Image.file(File(image.path)).width;
+
+                    print(
+                        'Height of imageCaptured : $imageHeight \n Width of imageCaptured:$imageWidth');
+                    print('Path to file :${image.path}');
+                    print('Name of file :${image.name}');
+                    print('Starting point of X : $startingPointX');
+                    print('Starting point of Y : $startingPointY');
+                    print('Width of image to be crop:  $widthOfImage');
+                    print('Height of image to be crop: $heightOfImage');
+                    var decodedImage =
+                        imagePackage.decodeImage(fileOfImage.readAsBytesSync());
+                    print(
+                        'Height of decodedImage : ${decodedImage.height}\n Width of decodedImage:${decodedImage.width}');
+                    final croppedImage = imagePackage.copyCrop(
+                      decodedImage,
+                      startingPointY * 5,
+                      startingPointX * 6,
+                      heightOfImage * 6,
+                      widthOfImage * 5,
+                    );
+
+                    print(
+                        'Height of imagecropped: ${croppedImage.height}\n Width of imagecropped:${croppedImage.width}');
+                    double aspectRation =
+                        croppedImage.width / croppedImage.height;
+                    File('$pathToFileCache/(${image.name})croppedImage.png')
+                        .writeAsBytesSync(imagePackage.encodeJpg(croppedImage));
+                    print('Aspect Ratio for the: $aspectRation');
                     Navigator.push(
                         context,
                         FadeRoute(
                             page: PictureDescription(
+                          height: heightOfImage,
+                          width: widthOfImage,
                           inputImage: inputImage,
-                          imagePath: image.path,
+                          imagePath:
+                              '$pathToFileCache/(${image.name})croppedImage.png',
+                          imageName: image.name,
+                          startingPointX: startingPointX,
+                          startingPointY: startingPointY,
                         )));
                   }))
         ],
@@ -70,18 +116,22 @@ class _CameraScreenState extends State<CameraScreen> {
         horizontalPadding = padding;
         verticalPadding = (constraints.maxHeight -
                 ((constraints.maxWidth - 2 * padding) / aspectRatio)) /
-            1.7;
+            2;
       } else {
         verticalPadding = padding;
         horizontalPadding = (constraints.maxWidth -
                 ((constraints.maxHeight - 2 * padding) * aspectRatio)) /
             2;
       }
-      print('This is constraint maxWidth : ${constraints.maxWidth}');
-      print('This is constraint maxHeight : ${constraints.maxHeight}');
+      print('This is constraint maxWidth : ${constraints.maxWidth.toInt()}');
+      print('This is constraint maxHeight : ${constraints.maxHeight.toInt()}');
       print('This is parent aspect ratio : $parentAspectRatio');
       print('This is vertical padding: $verticalPadding');
       print('This is horizontal padding: $horizontalPadding');
+      startingPointX = horizontalPadding.toInt();
+      startingPointY = verticalPadding.toInt();
+      widthOfImage = (constraints.maxWidth - (horizontalPadding * 2)).toInt();
+      heightOfImage = (constraints.maxHeight - (verticalPadding * 2)).toInt();
       return Stack(fit: StackFit.expand, children: [
         Align(
             alignment: Alignment.centerLeft,
