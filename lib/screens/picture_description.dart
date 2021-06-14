@@ -31,6 +31,14 @@ class _PictureDescriptionState extends State<PictureDescription> {
   String dataProcessed;
   String pathToCroppedImage = "";
   int counter = 0;
+  String nric = "";
+  String name = "";
+  String address = "";
+  bool isWarganegara = false;
+  String gender = "";
+  String religion = "";
+  int nricIndex = 0;
+  int nameIndex = 0;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,7 +47,7 @@ class _PictureDescriptionState extends State<PictureDescription> {
               child: FutureBuilder(
                   future: processImage(widget.inputImage),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done) {
+                    if (snapshot.hasData) {
                       return Container(
                         padding:
                             EdgeInsets.symmetric(horizontal: 36, vertical: 24),
@@ -76,7 +84,79 @@ class _PictureDescriptionState extends State<PictureDescription> {
                             SizedBox(
                               height: 40,
                             ),
-                            Text(dataProcessed),
+                            Text(dataProcessed ?? 'No data'),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'NRIC',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            Text(
+                              nric,
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'Name',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            Text(
+                              name,
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'Address',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            Text(
+                              address,
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'Gender',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            Text(
+                              gender,
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'Religion',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            Text(
+                              religion,
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'Warganegara',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            Text(
+                              isWarganegara ? 'Ya' : 'Tidak',
+                              style: TextStyle(fontSize: 14),
+                            ),
                             SizedBox(
                               height: 40,
                             ),
@@ -127,12 +207,46 @@ class _PictureDescriptionState extends State<PictureDescription> {
     final recognisedText = await textDetector.processImage(inputImage);
     print('Found ${recognisedText.blocks.length} textBlocks');
     print('Whole text:  ${recognisedText.text} ');
-
-    for (int i = 0; i < recognisedText.blocks.length; i++) {
-      print('Text found : ${recognisedText.blocks[i].text}');
-    }
-
     dataProcessed = recognisedText.text;
+    for (int i = 0; i < recognisedText.blocks.length; i++) {
+      print('Text of $i :  ${recognisedText.blocks[i].text} ');
+      if (recognisedText.blocks[i].text.contains('-', 6)) {
+        nric = recognisedText.blocks[i].text;
+        nricIndex = i + 1;
+      }
+
+      if (i == nricIndex) {
+        name = recognisedText.blocks[i].text;
+        nameIndex = i + 1;
+      }
+
+      if (i == nameIndex) {
+        address = recognisedText.blocks[i].text;
+      }
+
+      if (recognisedText.blocks[i].text.contains('WARGANEGARA')) {
+        isWarganegara = true;
+      } else {
+        print('Text sepatutnya warganegara: ${recognisedText.blocks[i].text}');
+      }
+
+      if (i == recognisedText.blocks.length - 1) {
+        if (recognisedText.blocks[i].text.contains('LELAKI')) {
+          int indexOfFirstLetter =
+              recognisedText.blocks[i].text.indexOf('LELAKI');
+          gender = recognisedText.blocks[i].text.substring(indexOfFirstLetter);
+        }
+        if (recognisedText.blocks[i].text.contains('PEREMPUAN')) {
+          int indexOfFirstLetter =
+              recognisedText.blocks[i].text.indexOf('PEREMPUAN');
+          gender = recognisedText.blocks[i].text.substring(indexOfFirstLetter);
+        }
+      }
+
+      // if (recognisedText.blocks[i].text.contains(RegExp(r"^[A-Z]*$"))) {
+      //   name = recognisedText.blocks[i].text;
+      // }
+    }
   }
 
   void croppingImage(
