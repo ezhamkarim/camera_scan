@@ -1,8 +1,10 @@
+import 'dart:developer';
 import 'dart:io';
-
+import 'package:camera_scan/extractdatanotifier.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image/image.dart' as imagePackage;
+import 'package:provider/provider.dart';
 
 class PictureDescription extends StatefulWidget {
   final String imagePath;
@@ -29,6 +31,7 @@ class PictureDescription extends StatefulWidget {
 class _PictureDescriptionState extends State<PictureDescription> {
   TextDetector textDetector = GoogleMlKit.vision.textDetector();
   String dataProcessed;
+  RecognisedText recognisedText;
   String pathToCroppedImage = "";
   int counter = 0;
   String nric = "";
@@ -37,22 +40,37 @@ class _PictureDescriptionState extends State<PictureDescription> {
   bool isWarganegara = false;
   String gender = "";
   String religion = "";
-  int nricIndex = 0;
-  int nameIndex = 0;
+  TextEditingController nricController = TextEditingController();
+  TextEditingController nameController = TextEditingController();
+  TextEditingController addressController = TextEditingController();
+  TextEditingController genderController = TextEditingController();
+  TextEditingController religionController = TextEditingController();
+  TextEditingController warganegaraController =
+      TextEditingController(text: 'TIDAK');
+  // Future<ResultData> initProcessImage;
+  bool isLoading = false;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final extractDataNotifier = context.watch<ExctractData>();
     return Scaffold(
       body: SafeArea(
           child: SingleChildScrollView(
-              child: FutureBuilder(
-                  future: processImage(widget.inputImage),
+              child: FutureBuilder<ResultData>(
+                  future: processImage(widget.inputImage, extractDataNotifier),
                   builder: (context, snapshot) {
+                    log('Snapshot has data? ${snapshot.hasData}');
                     if (snapshot.hasData) {
                       return Container(
                         padding:
                             EdgeInsets.symmetric(horizontal: 36, vertical: 24),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SizedBox(
                               height: 20,
@@ -84,18 +102,21 @@ class _PictureDescriptionState extends State<PictureDescription> {
                             SizedBox(
                               height: 40,
                             ),
-                            Text(dataProcessed ?? 'No data'),
+                            //Text(snapshot.data ?? 'No data'),
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Text(
                                 'NRIC',
                                 style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w500),
+                                    fontSize: 24, fontWeight: FontWeight.w500),
                               ),
                             ),
-                            Text(
-                              nric,
-                              style: TextStyle(fontSize: 14),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                nric,
+                                style: TextStyle(fontSize: 14),
+                              ),
                             ),
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
@@ -203,50 +224,74 @@ class _PictureDescriptionState extends State<PictureDescription> {
     );
   }
 
-  Future<void> processImage(InputImage inputImage) async {
-    final recognisedText = await textDetector.processImage(inputImage);
-    print('Found ${recognisedText.blocks.length} textBlocks');
-    print('Whole text:  ${recognisedText.text} ');
-    dataProcessed = recognisedText.text;
-    for (int i = 0; i < recognisedText.blocks.length; i++) {
-      print('Text of $i :  ${recognisedText.blocks[i].text} ');
-      if (recognisedText.blocks[i].text.contains('-', 6)) {
-        nric = recognisedText.blocks[i].text;
-        nricIndex = i + 1;
-      }
-
-      if (i == nricIndex) {
-        name = recognisedText.blocks[i].text;
-        nameIndex = i + 1;
-      }
-
-      if (i == nameIndex) {
-        address = recognisedText.blocks[i].text;
-      }
-
-      if (recognisedText.blocks[i].text.contains('WARGANEGARA')) {
-        isWarganegara = true;
-      } else {
-        print('Text sepatutnya warganegara: ${recognisedText.blocks[i].text}');
-      }
-
-      if (i == recognisedText.blocks.length - 1) {
-        if (recognisedText.blocks[i].text.contains('LELAKI')) {
-          int indexOfFirstLetter =
-              recognisedText.blocks[i].text.indexOf('LELAKI');
-          gender = recognisedText.blocks[i].text.substring(indexOfFirstLetter);
+  Future<ResultData> extractData(
+      RecognisedText recognisedText, ExctractData exctractDataNotifier) async {
+    try {
+      //exctractDataNotifier.setState(ViewState.BUSY);
+      int nricIndex = 0;
+      int nameIndex = 0;
+      var resultData = ResultData();
+      for (int i = 0; i < recognisedText.blocks.length; i++) {
+        print('Text of $i :  ${recognisedText.blocks[i].text} ');
+        print('LENGTH OF THE FUCKING LIST : ${recognisedText.blocks.length}');
+        if (recognisedText.blocks[i].text.contains('-')) {
+          nric = recognisedText.blocks[i].text;
+          resultData.nric = nric;
+          nricIndex = i + 1;
         }
-        if (recognisedText.blocks[i].text.contains('PEREMPUAN')) {
-          int indexOfFirstLetter =
-              recognisedText.blocks[i].text.indexOf('PEREMPUAN');
-          gender = recognisedText.blocks[i].text.substring(indexOfFirstLetter);
-        }
-      }
 
-      // if (recognisedText.blocks[i].text.contains(RegExp(r"^[A-Z]*$"))) {
-      //   name = recognisedText.blocks[i].text;
-      // }
+        if (i == nricIndex) {
+          name = recognisedText.blocks[i].text;
+          resultData.name = name;
+          nameIndex = i + 1;
+        }
+
+        if (i == nameIndex) {
+          address = recognisedText.blocks[i].text;
+          resultData.address = address;
+        }
+
+        if (recognisedText.blocks[i].text.contains('WARGANEGARA')) {
+          isWarganegara = true;
+          resultData.warganegara = isWarganegara;
+        } else {
+          print(
+              'Text sepatutnya warganegara: ${recognisedText.blocks[i].text}');
+        }
+
+        if (i == recognisedText.blocks.length - 1) {
+          if (recognisedText.blocks[i].text.contains('LELAKI')) {
+            int indexOfFirstLetter =
+                recognisedText.blocks[i].text.indexOf('LELAKI');
+            gender =
+                recognisedText.blocks[i].text.substring(indexOfFirstLetter);
+            resultData.gender = gender;
+          }
+          if (recognisedText.blocks[i].text.contains('PEREMPUAN')) {
+            int indexOfFirstLetter =
+                recognisedText.blocks[i].text.indexOf('PEREMPUAN');
+            gender =
+                recognisedText.blocks[i].text.substring(indexOfFirstLetter);
+            resultData.gender = gender;
+          }
+        }
+
+        // if (recognisedText.blocks[i].text.contains(RegExp(r"^[A-Z]*$"))) {
+        //   name = recognisedText.blocks[i].text;
+        // }
+      }
+      //exctractDataNotifier.setState(ViewState.IDLE);
+      return resultData;
+    } catch (e) {
+      log("THE FUCKING ERROR :${e.toString()}");
     }
+  }
+
+  Future<ResultData> processImage(
+      InputImage inputImage, ExctractData extractDataNotifier) async {
+    final recognisedText = await textDetector.processImage(inputImage);
+    print('The recognisedText :${recognisedText.text}');
+    return await extractData(recognisedText, extractDataNotifier);
   }
 
   void croppingImage(
@@ -274,4 +319,32 @@ class _PictureDescriptionState extends State<PictureDescription> {
       counter++;
     });
   }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    print('Disposed');
+    textDetector.close();
+  }
 }
+
+class ResultData {
+  String name;
+  String nric;
+  String address;
+  String religion;
+  String gender;
+
+  bool warganegara;
+
+  ResultData(
+      {this.name,
+      this.nric,
+      this.address,
+      this.religion,
+      this.gender,
+      this.warganegara});
+}
+
+enum ViewState { IDLE, BUSY }
